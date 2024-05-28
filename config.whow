@@ -7,7 +7,7 @@ timeformat 12
 
 date {
     format "%a, %b %d %Y"
-    literal (mm/dd/yyyy)
+    literal "mm/dd/yyyy"
 }
 
 category {

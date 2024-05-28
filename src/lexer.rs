@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenKind {
     Key(String),
     Ident(String),
@@ -6,11 +6,11 @@ pub enum TokenKind {
     Separator(char),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
-    kind: TokenKind,
-    line: usize,
-    col: usize,
+    pub kind: TokenKind,
+    pub line: usize,
+    pub col: usize,
 }
 
 pub struct Lexer {
@@ -91,24 +91,26 @@ impl Lexer {
     }
 
     fn next_literal(&mut self) -> Option<Token> {
-        if !"'\"1234567890".contains(self.cur()) {
-            return None;
-        }
-
         let mut buf: Vec<char> = Vec::new();
         let line = self.line;
         let col = self.col();
+        let oldcur = self.cur;
 
         while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator() {
             buf.push(self.cur());
             self.cur += 1;
         }
 
-        return Some(Token::new(
-            TokenKind::Literal(buf.iter().collect::<String>()),
-            line,
-            col,
-        ));
+        let string = buf.iter().collect::<String>().to_lowercase();
+
+        if !"-\"'1234567890".contains(string.chars().nth(0).unwrap())
+            && !["yes", "no", "true", "false"].contains(&string.as_ref())
+        {
+            self.cur = oldcur;
+            return None;
+        }
+
+        return Some(Token::new(TokenKind::Literal(string), line, col));
     }
 
     fn next_ident(&mut self) -> Option<Token> {
@@ -121,7 +123,7 @@ impl Lexer {
         let col = self.col();
         self.cur += 1;
 
-        while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator(){
+        while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator() {
             buf.push(self.cur());
             self.cur += 1;
         }
@@ -138,7 +140,7 @@ impl Lexer {
         let line = self.line;
         let col = self.col();
 
-        while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator(){
+        while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator() {
             buf.push(self.cur());
             self.cur += 1;
         }
