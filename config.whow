@@ -1,3 +1,6 @@
+# sample configuration for whow
+# authored by Eason Qin
+
 icons yes
 cachedir "/path/to/cache"
 timeformat 12
@@ -7,9 +10,12 @@ date {
     literal "mm/dd/yyyy"
 }
 
-category [
-    "art" "programming:#ff00ff" "asap:$RED" "fun:$GREEN"
-]
+category {
+    art         null
+    programming "#ff00ff"
+    asap        null
+    fun         null
+}
 
 format [
     "separator:1" "date" "separator:1" "calendar"
@@ -20,3 +26,4 @@ format [
 custom {
     customtask "shell command"
 }
+

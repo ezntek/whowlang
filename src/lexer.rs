@@ -64,7 +64,12 @@ impl Lexer {
     }
 
     fn skip_whitespace(&mut self) {
-        while self.cur < self.file.len() && self.cur().is_ascii_whitespace() {
+        // FIXME: extremely clunky
+        while self.cur < self.file.len() {
+            if !self.cur().is_ascii_whitespace() {
+                break;
+            }
+
             if self.cur() == '\n' {
                 self.line += 1;
                 self.bol = self.cur;
@@ -72,6 +77,28 @@ impl Lexer {
 
             self.cur += 1;
         }
+
+        if self.cur >= self.file.len() {
+            return;
+        }
+
+        if self.cur() == '#' {
+            return self.skip_comment();
+        }
+    }
+
+    fn skip_comment(&mut self) {
+        if self.cur() != '#' {
+            return;
+        }
+
+        self.cur += 1;
+
+        while self.cur() != '\n' {
+            self.cur += 1;
+        }
+
+        self.skip_whitespace();
     }
 
     fn next_separator(&mut self) -> Option<Token> {
@@ -149,7 +176,7 @@ impl Lexer {
         let string = buf.iter().collect::<String>().to_lowercase();
 
         if !"-1234567890".contains(string.chars().nth(0).unwrap())
-            && !["yes", "no", "true", "false"].contains(&string.as_ref())
+            && !["yes", "no", "true", "false", "null", "nil"].contains(&string.as_ref())
         {
             return None;
         }
@@ -200,10 +227,14 @@ impl Lexer {
         return Token::new(TokenKind::Key(buf.iter().collect::<String>()), line, col);
     }
 
-    fn next_token(&mut self) -> Token {
+    fn next_token(&mut self) -> Option<Token> {
         self.skip_whitespace();
 
-        if let Some(tok) = self.next_separator() {
+        if self.cur >= self.file.len() {
+            return None;
+        }
+
+        Some(if let Some(tok) = self.next_separator() {
             tok
         } else if let Some(tok) = self.next_literal() {
             tok
@@ -211,14 +242,16 @@ impl Lexer {
             tok
         } else {
             self.next_key()
-        }
+        })
     }
 
     pub fn lex(&mut self) -> Vec<Token> {
         let mut tokens: Vec<Token> = Vec::new();
 
         while self.cur + 1 < self.file.len() {
-            tokens.push(self.next_token());
+            if let Some(tok) = self.next_token() {
+                tokens.push(tok);
+            }
         }
 
         tokens

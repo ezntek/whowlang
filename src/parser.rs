@@ -4,12 +4,13 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum WlangType {
-    StringLiteral(String),
-    IntLiteral(i32),
-    FloatLiteral(f32),
-    BooleanLiteral(bool),
+    String(String),
+    Int(i32),
+    Float(f32),
+    Bool(bool),
     Table(HashMap<String, WlangType>),
     Array(Vec<WlangType>),
+    Null,
 }
 
 pub struct Parser {
@@ -46,13 +47,15 @@ impl Parser {
                 buf.push(ch);
             }
 
-            return WlangType::StringLiteral(buf.iter().collect::<String>());
+            return WlangType::String(buf.iter().collect::<String>());
         }
 
         if str == "true" || str == "yes" {
-            return WlangType::BooleanLiteral(true);
+            return WlangType::Bool(true);
         } else if str == "false" || str == "no" {
-            return WlangType::BooleanLiteral(false);
+            return WlangType::Bool(false);
+        } else if str == "nil" || str == "null" {
+            return WlangType::Null;
         }
 
         let mut decimals = 0;
@@ -71,10 +74,10 @@ impl Parser {
             panic!("too many decimals");
         } else if decimals == 1 {
             let val = str.parse::<f32>().unwrap();
-            WlangType::FloatLiteral(val)
+            WlangType::Float(val)
         } else {
             let val = str.parse::<i32>().unwrap();
-            WlangType::IntLiteral(val)
+            WlangType::Int(val)
         }
     }
 
