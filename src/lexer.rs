@@ -99,7 +99,22 @@ impl Lexer {
 
         buf.push(terminator); // for the parser
         while peek < self.file.len() && self.file[peek] != terminator {
-            buf.push(self.file[peek]);
+            let ch = self.file[peek];
+
+            if ch == '\\' {
+                peek += 1;
+                let next = self.file[peek];
+                match next {
+                    '"' => buf.push('"'),
+                    '\'' => buf.push('\''),
+                    'n' => buf.push('\n'),
+                    'r' => buf.push('\r'),
+                    _ => buf.push(next),
+                }
+            } else {
+                buf.push(ch);
+            }
+
             peek += 1;
         }
         buf.push(terminator);
