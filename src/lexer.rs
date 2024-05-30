@@ -55,16 +55,16 @@ impl Lexer {
         return self.file[self.cur];
     }
 
-    fn is_cur_whitespace(&self) -> bool {
-        "\n\t ".contains(self.cur())
+    fn is_separator(&self, ch: char) -> bool {
+        "{}()[]".contains(ch)
     }
 
     fn is_cur_separator(&self) -> bool {
-        "{}()[]".contains(self.cur())
+        self.is_separator(self.cur())
     }
 
     fn skip_whitespace(&mut self) {
-        while self.cur < self.file.len() && self.is_cur_whitespace() {
+        while self.cur < self.file.len() && self.cur().is_ascii_whitespace() {
             if self.cur() == '\n' {
                 self.line += 1;
                 self.bol = self.cur;
@@ -90,25 +90,56 @@ impl Lexer {
         return res;
     }
 
+    fn next_string_literal(&mut self) -> Token {
+        let mut buf: Vec<char> = Vec::new();
+        let line = self.line;
+        let col = self.col();
+        let terminator = self.cur();
+        let mut peek = self.cur + 1;
+
+        buf.push(terminator); // for the parser
+        while peek < self.file.len() && self.file[peek] != terminator {
+            buf.push(self.file[peek]);
+            peek += 1;
+        }
+        buf.push(terminator);
+
+        if peek >= self.file.len() && self.file[peek] != terminator {
+            panic!("unterminated string literal at the end of file");
+        }
+
+        self.cur = peek + 1;
+        let string = buf.iter().collect::<String>();
+        return Token::new(TokenKind::Literal(string), line, col);
+    }
+
     fn next_literal(&mut self) -> Option<Token> {
         let mut buf: Vec<char> = Vec::new();
         let line = self.line;
         let col = self.col();
-        let oldcur = self.cur;
+        let mut peek = self.cur;
 
-        while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator() {
-            buf.push(self.cur());
-            self.cur += 1;
+        if self.cur() == '\"' || self.cur() == '\'' {
+            return Some(self.next_string_literal());
+        }
+
+        while peek < self.file.len()
+            && !self.file[peek].is_ascii_whitespace()
+            && !self.is_separator(self.file[peek])
+        {
+            buf.push(self.file[peek]);
+            peek += 1;
         }
 
         let string = buf.iter().collect::<String>().to_lowercase();
 
-        if !"-\"'1234567890".contains(string.chars().nth(0).unwrap())
+        if !"-1234567890".contains(string.chars().nth(0).unwrap())
             && !["yes", "no", "true", "false"].contains(&string.as_ref())
         {
-            self.cur = oldcur;
             return None;
         }
+
+        self.cur = peek;
 
         return Some(Token::new(TokenKind::Literal(string), line, col));
     }
@@ -123,7 +154,10 @@ impl Lexer {
         let col = self.col();
         self.cur += 1;
 
-        while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator() {
+        while self.cur < self.file.len()
+            && !self.cur().is_ascii_whitespace()
+            && !self.is_cur_separator()
+        {
             buf.push(self.cur());
             self.cur += 1;
         }
@@ -140,7 +174,10 @@ impl Lexer {
         let line = self.line;
         let col = self.col();
 
-        while self.cur < self.file.len() && !self.is_cur_whitespace() && !self.is_cur_separator() {
+        while self.cur < self.file.len()
+            && !self.cur().is_ascii_whitespace()
+            && !self.is_cur_separator()
+        {
             buf.push(self.cur());
             self.cur += 1;
         }
@@ -152,17 +189,14 @@ impl Lexer {
         self.skip_whitespace();
 
         if let Some(tok) = self.next_separator() {
-            return tok;
+            tok
+        } else if let Some(tok) = self.next_literal() {
+            tok
+        } else if let Some(tok) = self.next_ident() {
+            tok
+        } else {
+            self.next_key()
         }
-
-        if let Some(tok) = self.next_literal() {
-            return tok;
-        }
-
-        if let Some(tok) = self.next_ident() {
-            return tok;
-        }
-        return self.next_key();
     }
 
     pub fn lex(&mut self) -> Vec<Token> {

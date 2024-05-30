@@ -1,6 +1,3 @@
-$VARIABLE "text"
-$NUMBER 12
-
 icons yes
 cachedir "/path/to/cache"
 timeformat 12
@@ -10,15 +7,15 @@ date {
     literal "mm/dd/yyyy"
 }
 
-category {
-    art programming:#ff00ff asap:$RED fun:$GREEN
-}
+category [
+    "art" "programming:#ff00ff" "asap:$RED" "fun:$GREEN"
+]
 
-format {
-    separator:1 date separator:1 calendar
-    separator:2 important toddos separator:2
-    events separator:2 schedule customtask
-}
+format [
+    "separator:1" "date" "separator:1" "calendar"
+    "separator:2" "important" "todos" "separator:2"
+    "events" "separator:2" "schedule" "customtask"
+]
 
 custom {
     customtask "shell command"

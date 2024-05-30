@@ -34,11 +34,12 @@ impl Parser {
     }
 
     pub fn parse_literal(&mut self, str: &str) -> WlangType {
-        if str.as_bytes()[0] == b'\"' {
+        let terminator = str.as_bytes()[0];
+        if terminator == b'"' || terminator == b'\'' {
             let mut buf: Vec<char> = Vec::new();
 
             for ch in str[1..].chars() {
-                if ch == '\"' {
+                if ch as u8 == terminator {
                     break;
                 }
 
@@ -70,11 +71,9 @@ impl Parser {
             panic!("too many decimals");
         } else if decimals == 1 {
             let val = str.parse::<f32>().unwrap();
-            self.cur += 1;
             WlangType::FloatLiteral(val)
         } else {
             let val = str.parse::<i32>().unwrap();
-            self.cur += 1;
             WlangType::IntLiteral(val)
         }
     }
@@ -86,6 +85,12 @@ impl Parser {
             let mut elems: Vec<WlangType> = Vec::new();
 
             loop {
+                self.cur += 1;
+
+                if self.cur >= self.tokens.len() {
+                    panic!("unexpected end of token stream");
+                }
+
                 if let TokenKind::Separator(ch) = self.cur().kind {
                     if ch == ']' {
                         break;
@@ -105,7 +110,26 @@ impl Parser {
 
             WlangType::Array(elems)
         } else {
-            panic!("recursive parsing not implemented");
+            let mut toks: Vec<Token> = Vec::new();
+
+            loop {
+                self.cur += 1;
+
+                if self.cur >= self.tokens.len() {
+                    panic!("unexpected end of token stream");
+                }
+
+                if let TokenKind::Separator(ch) = self.cur().kind {
+                    if ch == '}' {
+                        break;
+                    }
+                } else {
+                    toks.push(self.cur().clone())
+                }
+            }
+
+            let parsed = Parser::new(toks).parse();
+            return WlangType::Table(parsed);
         }
     }
 
@@ -113,6 +137,11 @@ impl Parser {
         while self.cur < self.tokens.len() {
             if let TokenKind::Key(s) = self.cur().clone().kind {
                 self.cur += 1;
+
+                if self.cur >= self.tokens.len() {
+                    panic!("unexpected end of token stream")
+                }
+
                 let next = self.cur().clone();
                 let val: WlangType;
 
@@ -124,6 +153,8 @@ impl Parser {
                     };
 
                     val = v.clone();
+                } else if let TokenKind::Separator(c) = next.kind {
+                    val = self.parse_sep(c);
                 } else {
                     panic!("expected identifier or literal after key definition");
                 }
@@ -131,6 +162,11 @@ impl Parser {
                 self.res.insert(s, val);
             } else if let TokenKind::Ident(s) = self.cur().clone().kind {
                 self.cur += 1;
+
+                if self.cur >= self.tokens.len() {
+                    panic!("unexpected end of token stream")
+                }
+
                 let next = self.cur().clone();
                 let val: WlangType;
 
