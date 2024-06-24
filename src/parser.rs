@@ -1,22 +1,24 @@
 use crate::lexer::{Token, TokenKind};
 use core::panic;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Debug)]
-pub enum WlangType {
+pub enum Value {
     String(String),
     Int(i32),
     Float(f32),
     Bool(bool),
-    Table(HashMap<String, WlangType>),
-    Array(Vec<WlangType>),
+    Table(HashMap<String, Value>),
+    Array(Vec<Value>),
     Null,
 }
 
 pub struct Parser {
     tokens: Vec<Token>,
-    res: HashMap<String, WlangType>,
-    variables: HashMap<String, WlangType>,
+    res: HashMap<String, Value>,
+    variables: HashMap<String, Value>,
+    curlybracket_depth: usize,
+    sqbracket_depth: usize,
     cur: usize,
 }
 
@@ -26,6 +28,8 @@ impl Parser {
             tokens,
             variables: HashMap::new(),
             res: HashMap::new(),
+            curlybracket_depth: 0,
+            sqbracket_depth: 0,
             cur: 0,
         }
     }
@@ -34,7 +38,7 @@ impl Parser {
         &self.tokens[self.cur]
     }
 
-    pub fn parse_literal(&mut self, str: &str) -> WlangType {
+    pub fn parse_literal(&mut self, str: &str) -> Value {
         let terminator = str.as_bytes()[0];
         if terminator == b'"' || terminator == b'\'' {
             let mut buf: Vec<char> = Vec::new();
@@ -47,15 +51,15 @@ impl Parser {
                 buf.push(ch);
             }
 
-            return WlangType::String(buf.iter().collect::<String>());
+            return Value::String(buf.iter().collect::<String>());
         }
 
         if str == "true" || str == "yes" {
-            return WlangType::Bool(true);
+            return Value::Bool(true);
         } else if str == "false" || str == "no" {
-            return WlangType::Bool(false);
+            return Value::Bool(false);
         } else if str == "nil" || str == "null" {
-            return WlangType::Null;
+            return Value::Null;
         }
 
         let mut decimals = 0;
@@ -74,18 +78,19 @@ impl Parser {
             panic!("too many decimals");
         } else if decimals == 1 {
             let val = str.parse::<f32>().unwrap();
-            WlangType::Float(val)
+            Value::Float(val)
         } else {
             let val = str.parse::<i32>().unwrap();
-            WlangType::Int(val)
+            Value::Int(val)
         }
     }
 
-    pub fn parse_sep(&mut self, ch: char) -> WlangType {
+    pub fn parse_sep(&mut self, ch: char) -> Value {
         if ch == '(' {
             panic!("round brackets not implemented");
         } else if ch == '[' {
-            let mut elems: Vec<WlangType> = Vec::new();
+            let mut elems: Vec<Value> = Vec::new();
+            self.sqbracket_depth += 1;
 
             loop {
                 self.cur += 1;
@@ -95,8 +100,13 @@ impl Parser {
                 }
 
                 if let TokenKind::Separator(ch) = self.cur().kind {
-                    if ch == ']' {
-                        break;
+                    if ch == '[' {
+                        self.sqbracket_depth -= 1;
+                        if self.sqbracket_depth == 0 {
+                            break;
+                        }
+                    } else if ch == ']' {
+                        self.sqbracket_depth += 1;
                     }
                 } else if let TokenKind::Literal(s) = self.cur().clone().kind {
                     elems.push(self.parse_literal(&s))
@@ -111,9 +121,10 @@ impl Parser {
                 }
             }
 
-            WlangType::Array(elems)
+            Value::Array(elems)
         } else {
             let mut toks: Vec<Token> = Vec::new();
+            self.curlybracket_depth += 1;
 
             loop {
                 self.cur += 1;
@@ -124,19 +135,26 @@ impl Parser {
 
                 if let TokenKind::Separator(ch) = self.cur().kind {
                     if ch == '}' {
-                        break;
+                        self.curlybracket_depth -= 1;
+                        if self.curlybracket_depth == 0 {
+                            break;
+                        }
+                    } else if ch == '{' {
+                        self.curlybracket_depth += 1;
                     }
+
+                    toks.push(self.cur().clone())
                 } else {
                     toks.push(self.cur().clone())
                 }
             }
 
             let parsed = Parser::new(toks).parse();
-            return WlangType::Table(parsed);
+            return Value::Table(parsed);
         }
     }
 
-    pub fn parse(mut self) -> HashMap<String, WlangType> {
+    pub fn parse(mut self) -> HashMap<String, Value> {
         while self.cur < self.tokens.len() {
             if let TokenKind::Key(s) = self.cur().clone().kind {
                 self.cur += 1;
@@ -146,7 +164,7 @@ impl Parser {
                 }
 
                 let next = self.cur().clone();
-                let val: WlangType;
+                let val: Value;
 
                 if let TokenKind::Literal(s) = next.kind {
                     val = self.parse_literal(&s);
@@ -171,7 +189,7 @@ impl Parser {
                 }
 
                 let next = self.cur().clone();
-                let val: WlangType;
+                let val: Value;
 
                 if let TokenKind::Literal(s) = next.kind {
                     val = self.parse_literal(&s);

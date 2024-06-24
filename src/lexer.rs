@@ -26,15 +26,6 @@ impl Token {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn does_whitespace_work() {
-        let is_whitespace = |ch: char| "\n\t ".contains(ch);
-        assert!(is_whitespace('a'));
-    }
-}
-
 impl Lexer {
     pub fn new(src: String) -> Self {
         let file = src.chars().collect::<Vec<char>>();
@@ -248,7 +239,7 @@ impl Lexer {
     pub fn lex(&mut self) -> Vec<Token> {
         let mut tokens: Vec<Token> = Vec::new();
 
-        while self.cur + 1 < self.file.len() {
+        while self.cur <= self.file.len() - 1 {
             if let Some(tok) = self.next_token() {
                 tokens.push(tok);
             }

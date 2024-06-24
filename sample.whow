@@ -1,0 +1,11 @@
+menu {
+    id "file"
+    value "MyFile"
+    popup {
+        menuitem [
+            { value "New" onclick "CreateNew()" }
+            { value "Open" onclick "Open()" }
+            { value "Close" onclick "Close()" }
+        ]
+    }
+}
