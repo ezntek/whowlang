@@ -17,8 +17,6 @@ pub struct Parser {
     tokens: Vec<Token>,
     res: HashMap<String, Value>,
     variables: HashMap<String, Value>,
-    curlybracket_depth: usize,
-    sqbracket_depth: usize,
     cur: usize,
 }
 
@@ -28,8 +26,6 @@ impl Parser {
             tokens,
             variables: HashMap::new(),
             res: HashMap::new(),
-            curlybracket_depth: 0,
-            sqbracket_depth: 0,
             cur: 0,
         }
     }
@@ -86,45 +82,51 @@ impl Parser {
     }
 
     pub fn parse_sep(&mut self, ch: char) -> Value {
+        let mut sqbracket_depth = 0 as usize;
+        let mut curlybracket_depth = 0 as usize;
+
         if ch == '(' {
             panic!("round brackets not implemented");
         } else if ch == '[' {
             let mut elems: Vec<Value> = Vec::new();
-            self.sqbracket_depth += 1;
+            sqbracket_depth += 1;
 
             loop {
                 self.cur += 1;
+                let cur = self.cur().clone();
 
                 if self.cur >= self.tokens.len() {
                     panic!("unexpected end of token stream");
                 }
 
-                if let TokenKind::Separator(ch) = self.cur().kind {
-                    if ch == '[' {
-                        self.sqbracket_depth -= 1;
-                        if self.sqbracket_depth == 0 {
+                if let TokenKind::Separator(ch) = cur.kind {
+                    if ch == ']' {
+                        sqbracket_depth -= 1;
+                        if sqbracket_depth == 0 {
                             break;
                         }
-                    } else if ch == ']' {
-                        self.sqbracket_depth += 1;
+                    } else if ch == '[' {
+                        sqbracket_depth += 1;
+                    } else {
+                        elems.push(self.parse_sep(ch));
                     }
-                } else if let TokenKind::Literal(s) = self.cur().clone().kind {
+                } else if let TokenKind::Literal(s) = cur.kind {
                     elems.push(self.parse_literal(&s))
-                } else if let TokenKind::Ident(s) = self.cur().clone().kind {
+                } else if let TokenKind::Ident(s) = cur.kind {
                     let Some(val) = self.variables.get(&s) else {
                         panic!("invalid variable name");
                     };
 
                     elems.push(val.clone());
                 } else {
-                    panic!("expected identifier or literal within list declaration");
+                    panic!("expected identifier or literal expression within list declaration");
                 }
             }
 
             Value::Array(elems)
         } else {
             let mut toks: Vec<Token> = Vec::new();
-            self.curlybracket_depth += 1;
+            curlybracket_depth += 1;
 
             loop {
                 self.cur += 1;
@@ -135,12 +137,12 @@ impl Parser {
 
                 if let TokenKind::Separator(ch) = self.cur().kind {
                     if ch == '}' {
-                        self.curlybracket_depth -= 1;
-                        if self.curlybracket_depth == 0 {
+                        curlybracket_depth -= 1;
+                        if curlybracket_depth == 0 {
                             break;
                         }
                     } else if ch == '{' {
-                        self.curlybracket_depth += 1;
+                        curlybracket_depth += 1;
                     }
 
                     toks.push(self.cur().clone())

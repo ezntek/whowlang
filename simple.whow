@@ -1,1 +1,9 @@
-out { mid { in {} } }
+list [
+    "arst"
+    "tars"
+    
+    {
+        mcdonalds "happymeal"
+        resteraunts [ "are" "shitty" ]
+    }
+]

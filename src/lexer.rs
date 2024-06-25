@@ -39,7 +39,7 @@ impl Lexer {
     }
 
     fn col(&self) -> usize {
-        return self.cur - self.bol;
+        return self.cur + 1 - self.bol;
     }
 
     fn cur(&self) -> char {
