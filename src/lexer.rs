@@ -89,7 +89,7 @@ impl Lexer {
             self.cur += 1;
         }
 
-        self.skip_whitespace();
+        return self.skip_whitespace();
     }
 
     fn next_separator(&mut self) -> Option<Token> {

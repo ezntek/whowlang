@@ -1,9 +1,14 @@
+# simple configuration
+
 list [
     "arst"
     "tars"
     
     {
         mcdonalds "happymeal"
-        resteraunts [ "are" "shitty" ]
+        restaurants [ "are" "shitty" ]
     }
+ 
+    { key "value" }
+    { key "value" }
 ]

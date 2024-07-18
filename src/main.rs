@@ -6,5 +6,7 @@ fn main() {
     res.iter().for_each(|t| println!("{:?}", t));
     let parser = Parser::new(res);
     let parsed = parser.parse();
-    println!("{:?}", parsed);
+    let json = Parser::to_json(&parsed);
+    let s = json.to_string();
+    println!("{s}");
 }

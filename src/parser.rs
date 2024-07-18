@@ -6,7 +6,7 @@ use std::collections::{HashMap, VecDeque};
 pub enum Value {
     String(String),
     Int(i32),
-    Float(f32),
+    Float(f64),
     Bool(bool),
     Table(HashMap<String, Value>),
     Array(Vec<Value>),
@@ -32,6 +32,35 @@ impl Parser {
 
     pub fn cur(&self) -> &Token {
         &self.tokens[self.cur]
+    }
+
+    fn value_to_json(src: &Value) -> serde_json::Value {
+        match src {
+            Value::String(s) => serde_json::Value::String(s.clone()),
+            Value::Int(n) => serde_json::Value::Number((*n as i32).into()),
+            Value::Float(f) => serde_json::Value::Number(serde_json::Number::from_f64(*f).unwrap()),
+            Value::Null => serde_json::Value::Null,
+            Value::Bool(b) => serde_json::Value::Bool(*b),
+            Value::Array(a) => {
+                let newarr = a
+                    .iter()
+                    .map(|itm| Parser::value_to_json(itm))
+                    .collect::<Vec<serde_json::Value>>();
+                serde_json::Value::Array(newarr)
+            }
+            Value::Table(t) => Parser::to_json(&t),
+        }
+    }
+
+    pub fn to_json(src: &HashMap<String, Value>) -> serde_json::Value {
+        let mut root = serde_json::Map::new();
+
+        for (key, value) in src {
+            root.insert(key.clone(), Parser::value_to_json(value));
+        }
+
+        let res = serde_json::Value::Object(root);
+        res
     }
 
     pub fn parse_literal(&mut self, str: &str) -> Value {
@@ -66,14 +95,14 @@ impl Parser {
             }
 
             if !"1234567890".contains(ch) {
-                panic!("invalid literal detected");
+                panic!("invalid eliteral detected");
             }
         }
 
         if decimals >= 2 {
             panic!("too many decimals");
         } else if decimals == 1 {
-            let val = str.parse::<f32>().unwrap();
+            let val = str.parse::<f64>().unwrap();
             Value::Float(val)
         } else {
             let val = str.parse::<i32>().unwrap();
